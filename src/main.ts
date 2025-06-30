@@ -1,13 +1,16 @@
-import { App, Component, MarkdownRenderer, MarkdownView, Menu, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { App, Menu, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { renderCurrentDocument, trimChildren } from "./utils";
 
 interface AO3ExportSettings {
+    sectionElements: string
     storySectionName: string
-    storySectionElement: string
+    tagsSectionName: string
 }
 
 const DEFAULT_SETTINGS: AO3ExportSettings = {
+    sectionElements: 'h2',
     storySectionName: 'story',
-    storySectionElement: 'h2'
+    tagsSectionName: 'tags'
 }
 
 export default class AO3ExportPlugin extends Plugin {
@@ -27,12 +30,6 @@ export default class AO3ExportPlugin extends Plugin {
 
         // add ribbon to open export modal
         this.addRibbonIcon('file-down', 'AO3 Export', (event: MouseEvent): void => {
-            // an active file is required
-            if(!this.app.workspace.getActiveFile()) {
-                new Notice('Select a note to open export options');
-                return;
-            }
-
             const menu = new Menu();
 
             menu.addItem(item => item
@@ -49,13 +46,19 @@ export default class AO3ExportPlugin extends Plugin {
             menu.addItem(item => item
                 .setTitle('Summary')
                 .setIcon('sigma')
-                .onClick(() => this.copyDocument(container => this.reduceToSummary(container)))
+                .onClick(() => this.copyDocument(container => this.trimToSummary(container)))
             );
 
             menu.addItem(item => item
                 .setTitle('Story')
                 .setIcon('align-left')
-                .onClick(() => this.copyDocument(container => this.reduceToStory(container)))
+                .onClick(() => this.copyDocument(container => this.trimToStory(container)))
+            );
+
+            menu.addItem(item => item
+                .setTitle('Tags')
+                .setIcon('tags')
+                .onClick(() => this.copyDocument(container => this.trimToTags(container), container => this.getTagList(container)))
             );
 
             menu.showAtMouseEvent(event);
@@ -65,46 +68,32 @@ export default class AO3ExportPlugin extends Plugin {
         this.addSettingTab(new ExportSettingTab(this.app, this));
     }
 
-    async copyDocument(preprocessor?: (container: HTMLElement) => Promise<any>): Promise<void> {
-        const container = await this.getCurrentDocument();
+    async copyDocument(preprocessor?: (container: HTMLElement) => boolean, postprocessor?: (container: HTMLElement) => string): Promise<void> {
+        const container = await renderCurrentDocument(this.app);
 
         if(!container) {
+            new Notice('No active note to export');
             return;
         }
 
         if(preprocessor) {
-            await preprocessor(container);
+            const success = preprocessor(container);
+
+            if(!success) {
+                return;
+            }
         }
 
-        await this.processDocument(container);
+        this.processDocument(container);
 
-        const content = container.innerHTML;
+        const content = postprocessor ? postprocessor(container) : container.innerHTML.trim();
 
         await navigator.clipboard.writeText(content);
 
         new Notice(`Copied ${content.length} characters to the clipboard!`);
     }
 
-    async getCurrentDocument(): Promise<HTMLElement | undefined> {
-        const file = this.app.workspace.getActiveFile();
-
-        if(!file) {
-            new Notice('No active note to export');
-            return;
-        }
-
-        const container = document.createElement('body');
-        const markdown = await this.app.vault.read(file);
-        const component = new Component();
-
-        component.load();
-        await MarkdownRenderer.render(this.app, markdown, container, file.path, component);
-        component.unload();
-
-        return container;
-    }
-
-    async processDocument(container: HTMLElement): Promise<void> {
+    processDocument(container: HTMLElement): void {
         for(let i = 0; i < container.childElementCount; i++) {
             const child = container.children[i];
 
@@ -123,67 +112,105 @@ export default class AO3ExportPlugin extends Plugin {
         }
     }
 
-    removeChildrenOutside(container: HTMLElement, startIndex: number, endIndex: number): void {
-        for(let i = container.childElementCount - 1; i >= endIndex; i--) {
-            container.removeChild(container.children[i]);
-        }
-
-        for(let i = startIndex; i >= 0; i--) {
-            container.removeChild(container.children[i]);
-        }
-    }
-
-    async reduceToSummary(container: HTMLElement): Promise<void> {
+    trimToSummary(container: HTMLElement): boolean {
         let endIndex = -1;
 
         for(let i = 0; i < container.childElementCount; i++) {
             const child = container.children[i] as HTMLElement;
 
             if(child.localName !== 'p' || child.find('a.tag')) {
-                endIndex = i;
+                endIndex = i - 1;
                 break;
             }
         }
 
         if(endIndex < 0) {
             new Notice('No summary section could be identified');
-            return;
+            return false;
         }
 
-        this.removeChildrenOutside(container, -1, endIndex);
+        trimChildren(container, 0, endIndex);
+
+        return true;
     }
 
-    async reduceToStory(container: HTMLElement): Promise<void> {
+    trimToStory(container: HTMLElement): boolean {
         let startIndex = -1;
         let endIndex = -1;
 
         for(let i = 0; i < container.childElementCount; i++) {
             const child = container.children[i] as HTMLElement;
 
-            if(child.localName !== this.settings.storySectionElement) {
+            if(child.localName !== this.settings.sectionElements) {
                 continue;
             }
 
             if(startIndex >= 0) {
-                endIndex = i;
+                endIndex = i - 1;
                 break;
             }
 
             if(child.dataset.heading?.toLowerCase() === this.settings.storySectionName) {
-                startIndex = i;
+                startIndex = i + 1;
             }
         }
 
         if(startIndex < 0) {
             new Notice('No story section could be identified');
-            return;
+            return false;
         }
 
         if(endIndex < 0) {
             endIndex = container.childElementCount;
         }
 
-        this.removeChildrenOutside(container, startIndex, endIndex);
+        trimChildren(container, startIndex, endIndex);
+
+        return true;
+    }
+
+    trimToTags(container: HTMLElement): boolean {
+        let startIndex = -1;
+        let endIndex = -1;
+
+        for(let i = 0; i < container.childElementCount; i++) {
+            const child = container.children[i] as HTMLElement;
+
+            if(child.localName !== this.settings.sectionElements) {
+                continue;
+            }
+
+            if(startIndex >= 0) {
+                endIndex = i - 1;
+                break;
+            }
+
+            if(child.dataset.heading?.toLowerCase() === this.settings.tagsSectionName) {
+                startIndex = i + 1;
+            }
+        }
+
+        if(startIndex < 0) {
+            new Notice('No tags section could be identified');
+            return false;
+        }
+
+        if(endIndex < 0) {
+            endIndex = container.childElementCount;
+        }
+
+        trimChildren(container, startIndex, endIndex);
+
+        container.innerText = container
+            .findAll('li')
+            .map(element => element.innerText)
+            .join(', ');
+
+        return true;
+    }
+
+    getTagList(container: HTMLElement): string {
+        return container.innerText;
     }
 }
 
@@ -216,9 +243,9 @@ class ExportSettingTab extends PluginSettingTab {
             .setDesc('Elements with this tag will be checked when searching for a story section')
             .addText(text => text
                 .setPlaceholder('Element tag')
-                .setValue(this.plugin.settings.storySectionElement)
+                .setValue(this.plugin.settings.sectionElements)
                 .onChange(async (value) => {
-                    this.plugin.settings.storySectionElement = value;
+                    this.plugin.settings.sectionElements = value;
                     await this.plugin.saveSettings();
                 }));
     }
