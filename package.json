@@ -1,5 +1,5 @@
 {
-	"name": "obsidian-export-ao3",
+	"name": "ao3-export-obsidian",
 	"version": "0.1.0",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",

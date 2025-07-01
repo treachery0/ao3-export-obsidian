@@ -1,6 +1,6 @@
 {
-	"id": "export-ao3",
-	"name": "Export AO3",
+	"id": "ao3-export",
+	"name": "AO3 export",
 	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
 	"description": "Export notes to AO3 compatible HTML",

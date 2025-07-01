@@ -1,220 +1,165 @@
-import { App, Menu, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { renderCurrentDocument, trimChildren } from "./utils";
+import { App, Modal, Notice, Plugin, PluginSettingTab, Setting } from "obsidian";
+import { renderCurrentDocument, cleanDocument, trimToSection, trimToSummary, trimToTags } from "./utils";
 
 interface AO3ExportSettings {
     sectionElements: string
-    storySectionName: string
     tagsSectionName: string
 }
 
 const DEFAULT_SETTINGS: AO3ExportSettings = {
     sectionElements: 'h2',
-    storySectionName: 'story',
     tagsSectionName: 'tags'
 }
 
 export default class AO3ExportPlugin extends Plugin {
     settings: AO3ExportSettings;
 
-    async loadSettings(): Promise<void> {
+    async loadSettings() {
         this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
     }
 
-    async saveSettings(): Promise<void> {
+    async saveSettings() {
         await this.saveData(this.settings);
     }
 
-    async onload(): Promise<void> {
-        // load settings
+    async onload() {
         await this.loadSettings();
 
-        // add ribbon to open export modal
-        this.addRibbonIcon('file-down', 'AO3 Export', (event: MouseEvent): void => {
-            const menu = new Menu();
+        this.addSettingTab(new AO3ExportSettingTab(this.app, this));
 
-            menu.addItem(item => item
-                .setTitle('Export options')
-                .setIsLabel(true)
-            );
+        this.addCommand({
+            id: 'ao3-export-note',
+            name: 'Manage current document',
+            callback: () => {
+                if(!this.app.workspace.getActiveFile()) {
+                    new Notice('No active note to export');
+                    return;
+                }
 
-            menu.addItem(item => item
-                .setTitle('Entire document')
-                .setIcon('document')
-                .onClick(() => this.copyDocument())
-            );
-
-            menu.addItem(item => item
-                .setTitle('Summary')
-                .setIcon('sigma')
-                .onClick(() => this.copyDocument(container => this.trimToSummary(container)))
-            );
-
-            menu.addItem(item => item
-                .setTitle('Story')
-                .setIcon('align-left')
-                .onClick(() => this.copyDocument(container => this.trimToStory(container)))
-            );
-
-            menu.addItem(item => item
-                .setTitle('Tags')
-                .setIcon('tags')
-                .onClick(() => this.copyDocument(container => this.trimToTags(container), container => this.getTagList(container)))
-            );
-
-            menu.showAtMouseEvent(event);
+                new AO3ExportModal(this.app).open();
+            }
         });
+    }
+}
 
-        // add a settings tab
-        this.addSettingTab(new ExportSettingTab(this.app, this));
+class AO3ExportModal extends Modal {
+    constructor(app: App) {
+        super(app);
+
+        this.setTitle('Export note for AO3');
+
+        new Setting(this.contentEl)
+            .setName('Entire note')
+            .addButton(button => {
+                button.setButtonText('Copy');
+                button.onClick(async () => this.exportNote());
+            });
+
+        new Setting(this.contentEl)
+            .setName('Summary')
+            .addButton(button => {
+                button.setButtonText('Copy');
+                button.onClick(async () => this.exportSummary());
+            });
+
+        new Setting(this.contentEl)
+            .setName('Tag list')
+            .addButton(button => {
+                button.setButtonText('Copy');
+                button.onClick(async () => this.exportTagList());
+            });
+
+        new Setting(this.contentEl)
+            .setName('Story')
+            .addButton(button => {
+                button.setButtonText('Copy');
+                button.onClick(async () => this.exportStory());
+            });
     }
 
-    async copyDocument(preprocessor?: (container: HTMLElement) => boolean, postprocessor?: (container: HTMLElement) => string): Promise<void> {
-        const container = await renderCurrentDocument(this.app);
+    async exportNote(options?: AO3ExportTaskOptions) {
+        const element = await renderCurrentDocument(this.app);
 
-        if(!container) {
-            new Notice('No active note to export');
+        if(!element) {
             return;
         }
 
-        if(preprocessor) {
-            const success = preprocessor(container);
+        if(options?.before) {
+            const success = options.before(element);
 
             if(!success) {
                 return;
             }
         }
 
-        this.processDocument(container);
+        cleanDocument(element);
 
-        const content = postprocessor ? postprocessor(container) : container.innerHTML.trim();
+        if(options?.after) {
+            const success = options.after(element);
+
+            if(!success) {
+                return;
+            }
+        }
+
+        const content = options?.stringify ? options.stringify(element) : element.innerHTML.trim();
 
         await navigator.clipboard.writeText(content);
 
         new Notice(`Copied ${content.length} characters to the clipboard!`);
     }
 
-    processDocument(container: HTMLElement): void {
-        for(let i = 0; i < container.childElementCount; i++) {
-            const child = container.children[i];
+    async exportSummary() {
+        await this.exportNote({
+            before: element => {
+                const success = trimToSummary(element);
 
-            // remove if internal embed
-            if(child.find('.internal-embed[alt^="^S"]')) {
-                container.removeChild(child);
-                i--;
+                if(!success) {
+                    new Notice('No summary could be located');
+                }
 
-                continue;
+                return success;
             }
-
-            // remove all attributes
-            while(child.attributes.length > 0) {
-                child.removeAttribute(child.attributes[0].name);
-            }
-        }
+        });
     }
 
-    trimToSummary(container: HTMLElement): boolean {
-        let endIndex = -1;
+    async exportTagList() {
+        await this.exportNote({
+            before: element => {
+                const success = trimToTags(element, 'tags', 'h2');
 
-        for(let i = 0; i < container.childElementCount; i++) {
-            const child = container.children[i] as HTMLElement;
+                if(!success) {
+                    new Notice('No tag list could be located');
+                }
 
-            if(child.localName !== 'p' || child.find('a.tag')) {
-                endIndex = i - 1;
-                break;
-            }
-        }
-
-        if(endIndex < 0) {
-            new Notice('No summary section could be identified');
-            return false;
-        }
-
-        trimChildren(container, 0, endIndex);
-
-        return true;
+                return success;
+            },
+            stringify: element => element.innerText
+        });
     }
 
-    trimToStory(container: HTMLElement): boolean {
-        let startIndex = -1;
-        let endIndex = -1;
+    async exportStory() {
+        await this.exportNote({
+            before: element => {
+                const success = trimToSection(element, 'story', 'h2')
 
-        for(let i = 0; i < container.childElementCount; i++) {
-            const child = container.children[i] as HTMLElement;
+                if(!success) {
+                    new Notice(`No story section could be located`);
+                }
 
-            if(child.localName !== this.settings.sectionElements) {
-                continue;
+                return success;
             }
-
-            if(startIndex >= 0) {
-                endIndex = i - 1;
-                break;
-            }
-
-            if(child.dataset.heading?.toLowerCase() === this.settings.storySectionName) {
-                startIndex = i + 1;
-            }
-        }
-
-        if(startIndex < 0) {
-            new Notice('No story section could be identified');
-            return false;
-        }
-
-        if(endIndex < 0) {
-            endIndex = container.childElementCount;
-        }
-
-        trimChildren(container, startIndex, endIndex);
-
-        return true;
-    }
-
-    trimToTags(container: HTMLElement): boolean {
-        let startIndex = -1;
-        let endIndex = -1;
-
-        for(let i = 0; i < container.childElementCount; i++) {
-            const child = container.children[i] as HTMLElement;
-
-            if(child.localName !== this.settings.sectionElements) {
-                continue;
-            }
-
-            if(startIndex >= 0) {
-                endIndex = i - 1;
-                break;
-            }
-
-            if(child.dataset.heading?.toLowerCase() === this.settings.tagsSectionName) {
-                startIndex = i + 1;
-            }
-        }
-
-        if(startIndex < 0) {
-            new Notice('No tags section could be identified');
-            return false;
-        }
-
-        if(endIndex < 0) {
-            endIndex = container.childElementCount;
-        }
-
-        trimChildren(container, startIndex, endIndex);
-
-        container.innerText = container
-            .findAll('li')
-            .map(element => element.innerText)
-            .join(', ');
-
-        return true;
-    }
-
-    getTagList(container: HTMLElement): string {
-        return container.innerText;
+        });
     }
 }
 
-class ExportSettingTab extends PluginSettingTab {
+interface AO3ExportTaskOptions {
+    before?: (element: HTMLElement) => boolean
+    after?: (element: HTMLElement) => boolean
+    stringify?: (element: HTMLElement) => string
+}
+
+class AO3ExportSettingTab extends PluginSettingTab {
     plugin: AO3ExportPlugin;
 
     constructor(app: App, plugin: AO3ExportPlugin) {
@@ -228,19 +173,8 @@ class ExportSettingTab extends PluginSettingTab {
         containerEl.empty();
 
         new Setting(containerEl)
-            .setName('Story section name')
-            .setDesc('A header with this text will be identified as the story section (case insensitive)')
-            .addText(text => text
-                .setPlaceholder('Story section name')
-                .setValue(this.plugin.settings.storySectionName)
-                .onChange(async (value) => {
-                    this.plugin.settings.storySectionName = value;
-                    await this.plugin.saveSettings();
-                }));
-
-        new Setting(containerEl)
-            .setName('Story section element')
-            .setDesc('Elements with this tag will be checked when searching for a story section')
+            .setName('Section element')
+            .setDesc('Elements with this tag will be checked when searching for sections')
             .addText(text => text
                 .setPlaceholder('Element tag')
                 .setValue(this.plugin.settings.sectionElements)
