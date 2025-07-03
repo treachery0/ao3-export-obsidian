@@ -1,25 +1,42 @@
-import { App, Component, MarkdownRenderer } from "obsidian";
+import { App, Component, Editor, EditorPosition, MarkdownFileInfo, MarkdownRenderer, MarkdownView, Notice, TFile } from "obsidian";
 
 /**
- * Remove all children of an element outside a specified range.
- * @param element The parent element.
- * @param start The index of the first child element to keep.
- * @param end The index of the last child element to keep.
+ * Convert a line and character number to an editor position.
+ * @param line The line number.
+ * @param character The character number.
+ * @returns A new editor position.
+ * @copyright Copied and deobfuscated from Obsidian's source code.
  */
-export function trimChildren(element: HTMLElement, start: number, end: number): void {
-    // remove everything after the last index
-    for(let i = element.childElementCount - 1; i > end; i--) {
-        element.removeChild(element.children[i]);
+function toEditorPosition(line: number, character: number | undefined): EditorPosition {
+    if(character === undefined) {
+        character = 0;
     }
 
-    // remove everything before the first index
-    for(let i = start - 1; i >= 0; i--) {
-        element.removeChild(element.children[i]);
-    }
+    return {
+        line: line,
+        ch: character
+    };
 }
 
 /**
- * Trim the document tree of unnecessary elements and attributes.
+ * Render a markdown string as an HTML document.
+ * @param app The current app instance.
+ * @param markdown The markdown string to render.
+ * @param path The path of the markdown document.
+ */
+async function renderMarkdown(app: App, markdown: string, path: string): Promise<HTMLElement> {
+    const container = document.createElement('body');
+    const component = new Component();
+
+    component.load();
+    await MarkdownRenderer.render(app, markdown, container, path, component);
+    component.unload();
+
+    return container;
+}
+
+/**
+ * Trim an element of unnecessary children and attributes.
  * @param element The root element of the document.
  */
 export function cleanDocument(element: HTMLElement): void {
@@ -42,131 +59,121 @@ export function cleanDocument(element: HTMLElement): void {
 }
 
 /**
- * Render the currently selected document as HTML.
- * @param app The current obsidian app instance.
- * @returns The root element of the rendered document, if the operation was successful.
+ * Default function to convert a container element into a string.
+ * @param element The container element.
+ * @returns The inner HTML of the element.
  */
-export async function renderCurrentDocument(app: App): Promise<HTMLElement | undefined> {
-    const file = app.workspace.getActiveFile();
-
-    if(!file) {
-        return;
-    }
-
-    const container = document.createElement('body');
-    const markdown = await app.vault.read(file);
-    const component = new Component();
-
-    component.load();
-    await MarkdownRenderer.render(app, markdown, container, file.path, component);
-    component.unload();
-
-    return container;
+export function defaultStringify(element: HTMLElement): string {
+    return element.innerHTML.trim();
 }
 
 /**
- * Find a section within the children of an element.
- * @param element The parent element of the children to search.
- * @param elementTitle The title text of the selected section.
- * @param elementTag The tag name marking the beginning of sections.
- * @returns The index of the first and last child node. Undefined if no such section could be identified.
+ * Find the content boundaries of a heading within a document.
+ * @param app The current app instance.
+ * @param file The current markdown file.
+ * @param editor The current editor instance.
+ * @param currentLine The line number of the heading element.
+ * @returns The heading's text, its starting and ending position as an object.
+ * @copyright Copied and deobfuscated from Obsidian's source code.
  */
-export function findSection(element: HTMLElement, elementTitle: string, elementTag: string): [number, number] | undefined {
-    let startIndex = -1;
-    let endIndex = -1;
+export function getSelectionUnderHeading(app: App, file: TFile, editor: Editor, currentLine: number): {heading: string, start: EditorPosition, end: EditorPosition} | null {
+    const cache = app.metadataCache.getFileCache(file);
 
-    for(let i = 0; i < element.childElementCount; i++) {
-        const child = element.children[i] as HTMLElement;
+    if(!cache){
+        return null;
+    }
 
-        if(child.localName !== elementTag) {
-            continue;
-        }
+    const headings = cache.headings;
 
-        if(startIndex >= 0) {
-            endIndex = i - 1;
+    if(!headings || headings.length === 0){
+        return null;
+    }
+
+    let currentHeading = null;
+    let nextHeading = null;
+    let currentHeadingLevel = 0;
+
+    // iterate over all headings in the file
+    for(let i = 0; i < headings.length; i++) {
+        const heading = headings[i];
+
+        // if we've found the current heading and a lower/equal-level heading appears, it's the end
+        if(currentHeading && heading.level <= currentHeadingLevel) {
+            nextHeading = heading;
             break;
         }
 
-        if(child.dataset.heading?.toLowerCase() === elementTitle) {
-            startIndex = i + 1;
+        // if we haven't found the current heading yet
+        if(!currentHeading && heading.position.start.line === currentLine) {
+            currentHeadingLevel = heading.level;
+            currentHeading = heading;
         }
     }
 
-    if(startIndex < 0) {
+    // if we didn't find a matching heading, return null
+    if(!currentHeading) {
+        return null;
+    }
+
+    // find the ending line of the section
+    let endLine;
+
+    if(nextHeading) {
+        // move up from the start of the next heading until we find non-empty line
+        endLine = nextHeading.position.start.line - 1;
+
+        while(endLine > currentLine && editor.getLine(endLine).trim() === "") {
+            endLine--;
+        }
+    }
+    else {
+        // if there's no next heading, end of document
+        endLine = editor.lineCount() - 1;
+    }
+
+    // return the range and heading title
+    return {
+        heading: currentHeading.heading.trim(),
+        start: toEditorPosition(currentLine, 0),
+        end: toEditorPosition(endLine, editor.getLine(endLine).length)
+    }
+}
+
+/**
+ * Extract a heading as HTML from a markdown document.
+ * @param editor The current editor instance.
+ * @param view The current markdown view.
+ * @param lineNumber The line number of the heading element.
+ * @returns An HTML element with the desired heading as its content, if successful.
+ */
+export async function getHeadingAsHTML(editor: Editor, view: MarkdownFileInfo | MarkdownView, lineNumber: number): Promise<HTMLElement | undefined> {
+    if(!view.file) {
         return;
     }
 
-    if(endIndex < 0) {
-        endIndex = element.childElementCount;
+    const headingSelection = getSelectionUnderHeading(view.app, view.file, editor, lineNumber);
+
+    if(!headingSelection) {
+        return;
     }
 
-    return [startIndex, endIndex];
+    const markdown = editor.getRange(headingSelection.start, headingSelection.end);
+
+    return renderMarkdown(view.app, markdown, view.file.path);
 }
 
 /**
- * Trim the children of an element so that only the contents of a given section remain.
- * @param element The parent element of the children to search.
- * @param elementTitle The title text of the selected section.
- * @param elementTag The tag name marking the beginning of sections.
- * @returns True if the operation was successful, false otherwise.
+ * Extract the current selection as HTML from a markdown document.
+ * @param editor The current editor instance.
+ * @param view The current markdown view.
+ * @returns An HTML element with the current selection as its content, if successful.
  */
-export function trimToSection(element: HTMLElement, elementTitle: string, elementTag: string): boolean {
-    const sectionRange = findSection(element, elementTitle, elementTag);
-
-    if(!sectionRange) {
-        return false;
+export async function getSelectionAsHTML(editor: Editor, view: MarkdownFileInfo | MarkdownView): Promise<HTMLElement | undefined> {
+    if(!view.file) {
+        return;
     }
 
-    const [start, end] = sectionRange;
+    const markdown = editor.getSelection();
 
-    trimChildren(element, start, end);
-
-    return true;
-}
-
-/**
- * Trim the children of an element so that only the starting paragraphs remain.
- * @param root The root element of the document.
- * @returns True if the operation was successful, false otherwise.
- */
-export function trimToSummary(root: HTMLElement): boolean {
-    let end = -1;
-
-    for(let i = 0; i < root.childElementCount; i++) {
-        const child = root.children[i] as HTMLElement;
-
-        if(child.localName !== 'p' || child.find('a.tag')) {
-            end = i - 1;
-            break;
-        }
-    }
-
-    if(end < 0) {
-        return false;
-    }
-
-    trimChildren(root, 0, end);
-
-    return true;
-}
-
-/**
- * Trim the contents of an element to the contents of all <li> tags inside a specified section.
- * @param root The root element of the document.
- * @param elementTitle The title text of the selected section.
- * @param elementTag The tag name marking the beginning of sections.
- */
-export function trimToTags(root: HTMLElement, elementTitle: string, elementTag: string): boolean {
-    const success = trimToSection(root, elementTitle, elementTag);
-
-    if(!success) {
-        return false;
-    }
-
-    root.innerText = root
-        .findAll('li')
-        .map(element => element.innerText.trim())
-        .join(', ');
-
-    return true;
+    return renderMarkdown(view.app, markdown, view.file.path);
 }
