@@ -1,5 +1,6 @@
 import { Editor, MarkdownFileInfo, MarkdownView, Notice } from "obsidian";
 import { cleanDocument, defaultStringify, getHeadingAsHTML, getSelectionAsHTML } from "./utils";
+import { AO3ExportSettings } from "./settings";
 
 async function copyText(text: string): Promise<void> {
     await navigator.clipboard.writeText(text);
@@ -7,7 +8,7 @@ async function copyText(text: string): Promise<void> {
     new Notice(`Copied ${text.length} characters to the clipboard!`);
 }
 
-export async function copyCurrentSelection(editor: Editor, view: MarkdownFileInfo | MarkdownView) {
+export async function copyCurrentSelection(editor: Editor, view: MarkdownFileInfo | MarkdownView, settings: AO3ExportSettings) {
     const container = await getSelectionAsHTML(editor, view);
 
     if(!container) {
@@ -15,39 +16,39 @@ export async function copyCurrentSelection(editor: Editor, view: MarkdownFileInf
         return;
     }
 
-    cleanDocument(container);
+    cleanDocument(container, settings.removedAttributes, settings.removedSelectors);
 
     const text = defaultStringify(container)
 
     await copyText(text);
 }
 
-export async function copyCurrentHeading(editor: Editor, view: MarkdownFileInfo | MarkdownView, lineNumber: number) {
-    const container = await getHeadingAsHTML(editor, view, lineNumber);
+export async function copyCurrentHeading(editor: Editor, view: MarkdownFileInfo | MarkdownView, settings: AO3ExportSettings) {
+    const container = await getHeadingAsHTML(editor, view);
 
     if(!container) {
         return;
     }
 
-    cleanDocument(container);
+    cleanDocument(container, settings.removedAttributes, settings.removedSelectors);
 
     if(container.childElementCount) {
-        container.removeChild(container.children[0])
+        container.removeChild(container.children[0]);
     }
 
-    const text = defaultStringify(container)
+    const text = defaultStringify(container);
 
     await copyText(text);
 }
 
-export async function copyCurrentHeadingAsList(editor: Editor, view: MarkdownFileInfo | MarkdownView, lineNumber: number) {
-    const container = await getHeadingAsHTML(editor, view, lineNumber);
+export async function copyCurrentHeadingAsList(editor: Editor, view: MarkdownFileInfo | MarkdownView, settings: AO3ExportSettings) {
+    const container = await getHeadingAsHTML(editor, view);
 
     if(!container) {
         return;
     }
 
-    cleanDocument(container);
+    cleanDocument(container, settings.removedAttributes, settings.removedSelectors);
 
     const list = container
         .findAll('li')

@@ -1,0 +1,11 @@
+.setting-list-item .setting-item-info, .setting-list-add .setting-item-info {
+    display: none;
+}
+
+.setting-list-item input[type=text] {
+    flex: 1;
+}
+
+.setting-list-add .setting-item-control {
+    justify-content: flex-start;
+}

@@ -1,4 +1,4 @@
-import { App, Component, Editor, EditorPosition, MarkdownFileInfo, MarkdownRenderer, MarkdownView, Notice, TFile } from "obsidian";
+import { App, Component, Editor, EditorPosition, MarkdownFileInfo, MarkdownRenderer, MarkdownView, TFile } from "obsidian";
 
 /**
  * Convert a line and character number to an editor position.
@@ -22,7 +22,7 @@ function toEditorPosition(line: number, character: number | undefined): EditorPo
  * Render a markdown string as an HTML document.
  * @param app The current app instance.
  * @param markdown The markdown string to render.
- * @param path The path of the markdown document.
+ * @param path The path of the Markdown document.
  */
 async function renderMarkdown(app: App, markdown: string, path: string): Promise<HTMLElement> {
     const container = document.createElement('body');
@@ -38,23 +38,24 @@ async function renderMarkdown(app: App, markdown: string, path: string): Promise
 /**
  * Trim an element of unnecessary children and attributes.
  * @param element The root element of the document.
+ * @param attributes The attributes to remove from every element.
+ * @param selectors A list of CSS selectors for elements to remove.
  */
-export function cleanDocument(element: HTMLElement): void {
-    for(let i = 0; i < element.childElementCount; i++) {
-        const child = element.children[i];
+export function cleanDocument(element: HTMLElement, attributes: string[] = [], selectors: string[] = []): void {
+    const combinedSelector = selectors.filter(x => x.length).join(', ');
 
-        // remove internal embeds
-        if(child.find('.internal-embed[alt^="^S"]')) {
-            element.removeChild(child);
-            i--;
+    // remove chosen elements
+    if(combinedSelector.length) {
+        element.querySelectorAll(combinedSelector).forEach(el => {
+            el.parentElement?.removeChild(el);
+        });
+    }
 
-            continue;
-        }
-
-        // remove all attributes
-        while(child.attributes.length > 0) {
-            child.removeAttribute(child.attributes[0].name);
-        }
+    if(attributes.length) {
+        element.querySelectorAll('*').forEach(el => {
+            // remove chosen attributes
+            attributes.forEach(attr => el.removeAttribute(attr));
+        });
     }
 }
 
@@ -76,16 +77,16 @@ export function defaultStringify(element: HTMLElement): string {
  * @returns The heading's text, its starting and ending position as an object.
  * @copyright Copied and deobfuscated from Obsidian's source code.
  */
-export function getSelectionUnderHeading(app: App, file: TFile, editor: Editor, currentLine: number): {heading: string, start: EditorPosition, end: EditorPosition} | null {
+export function getSelectionUnderHeading(app: App, file: TFile, editor: Editor, currentLine: number): { heading: string, start: EditorPosition, end: EditorPosition } | null {
     const cache = app.metadataCache.getFileCache(file);
 
-    if(!cache){
+    if(!cache) {
         return null;
     }
 
     const headings = cache.headings;
 
-    if(!headings || headings.length === 0){
+    if(!headings || headings.length === 0) {
         return null;
     }
 
@@ -140,17 +141,17 @@ export function getSelectionUnderHeading(app: App, file: TFile, editor: Editor, 
 }
 
 /**
- * Extract a heading as HTML from a markdown document.
+ * Extract the selected heading as HTML from a Markdown document.
  * @param editor The current editor instance.
  * @param view The current markdown view.
- * @param lineNumber The line number of the heading element.
  * @returns An HTML element with the desired heading as its content, if successful.
  */
-export async function getHeadingAsHTML(editor: Editor, view: MarkdownFileInfo | MarkdownView, lineNumber: number): Promise<HTMLElement | undefined> {
+export async function getHeadingAsHTML(editor: Editor, view: MarkdownFileInfo | MarkdownView): Promise<HTMLElement | undefined> {
     if(!view.file) {
         return;
     }
 
+    const lineNumber = editor.getCursor().line;
     const headingSelection = getSelectionUnderHeading(view.app, view.file, editor, lineNumber);
 
     if(!headingSelection) {
@@ -163,7 +164,7 @@ export async function getHeadingAsHTML(editor: Editor, view: MarkdownFileInfo | 
 }
 
 /**
- * Extract the current selection as HTML from a markdown document.
+ * Extract the current selection as HTML from a Markdown document.
  * @param editor The current editor instance.
  * @param view The current markdown view.
  * @returns An HTML element with the current selection as its content, if successful.
