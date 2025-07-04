@@ -1,13 +1,13 @@
 {
 	"name": "ao3-export-obsidian",
-	"version": "0.1.0",
+	"version": "1.0.0",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
-		"build": "node esbuild.config.mjs production && ./copy-plugin.sh",
+		"build": "node esbuild.config.mjs production && ./copy-to-sandbox.sh",
 		"version": "node version-bump.mjs && git add manifest.json versions.json"
 	},
 	"devDependencies": {
-		"@types/node": "^22.11.0",
+		"@types/node": "^24.0.0",
 		"@typescript-eslint/eslint-plugin": "^8.31.0",
 		"@typescript-eslint/parser": "^8.31.0",
 		"builtin-modules": "^5.0.0",

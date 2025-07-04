@@ -1,6 +1,6 @@
 import { Editor, MarkdownFileInfo, MarkdownView, Notice } from "obsidian";
-import { cleanDocument, defaultStringify, getHeadingAsHTML, getSelectionAsHTML } from "./utils";
 import { AO3ExportSettings } from "./settings";
+import { cleanDocument, defaultStringify, getHeadingAsHTML, getSelectionAsHTML } from "./utils";
 
 async function copyText(text: string): Promise<void> {
     await navigator.clipboard.writeText(text);
@@ -12,13 +12,12 @@ export async function copyCurrentSelection(editor: Editor, view: MarkdownFileInf
     const container = await getSelectionAsHTML(editor, view);
 
     if(!container) {
-        new Notice('');
         return;
     }
 
     cleanDocument(container, settings.removedAttributes, settings.removedSelectors);
 
-    const text = defaultStringify(container)
+    const text = defaultStringify(container);
 
     await copyText(text);
 }
@@ -32,7 +31,7 @@ export async function copyCurrentHeading(editor: Editor, view: MarkdownFileInfo 
 
     cleanDocument(container, settings.removedAttributes, settings.removedSelectors);
 
-    if(container.childElementCount) {
+    if(container.childElementCount && !settings.includeHeadingElement) {
         container.removeChild(container.children[0]);
     }
 
@@ -54,6 +53,11 @@ export async function copyCurrentHeadingAsList(editor: Editor, view: MarkdownFil
         .findAll('li')
         .map(element => element.innerText.trim())
         .join(', ');
+
+    if(!list.length) {
+        new Notice('No list items could be located');
+        return;
+    }
 
     await copyText(list);
 }

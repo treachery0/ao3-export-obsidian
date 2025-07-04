@@ -4,6 +4,7 @@ import AO3ExportPlugin from "./main";
 export interface AO3ExportSettings {
     removedAttributes: string[]
     removedSelectors: string[]
+    includeHeadingElement: boolean
 }
 
 export function getDefaultSettings(): AO3ExportSettings {
@@ -14,7 +15,8 @@ export function getDefaultSettings(): AO3ExportSettings {
         ],
         removedSelectors: [
             ':has(.internal-embed)'
-        ]
+        ],
+        includeHeadingElement: true
     };
 }
 
@@ -50,6 +52,16 @@ export class AO3ExportSettingTab extends PluginSettingTab {
         new Setting(container)
             .setName('Options')
             .setHeading()
+
+        new Setting(container)
+            .setName('Heading titles')
+            .setDesc('Include the heading element in the copied content')
+            .addToggle(toggle => toggle
+                .setValue(this.plugin.settings.includeHeadingElement)
+                .onChange(async (value) => {
+                    this.plugin.settings.includeHeadingElement = value;
+                    await this.saveSettings(false);
+                }))
 
         new Setting(container)
             .setName('Reset settings')

@@ -1,9 +1,7 @@
 .vscode
-*.iml
 .idea
+.sandbox
 node_modules
-main.js
+dist
 *.map
 .DS_Store
-dist
-tests
