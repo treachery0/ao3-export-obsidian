@@ -1,2 +1,13 @@
-# AO3 export for Obsidian.md
+# Obsidian HTML exporter
 
+## Features
+
+...
+
+## Installation
+
+...
+
+## Development
+
+...

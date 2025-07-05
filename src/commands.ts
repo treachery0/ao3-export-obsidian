@@ -50,9 +50,9 @@ export async function copyCurrentHeadingAsList(editor: Editor, view: MarkdownFil
     cleanDocument(container, settings.removedAttributes, settings.removedSelectors);
 
     const list = container
-        .findAll('li')
+        .findAll(settings.listItemSelector)
         .map(element => element.innerText.trim())
-        .join(', ');
+        .join(settings.listItemSeparator);
 
     if(!list.length) {
         new Notice('No list items could be located');

@@ -42,7 +42,7 @@ async function renderMarkdown(app: App, markdown: string, path: string): Promise
  * @param selectors A list of CSS selectors for elements to remove.
  */
 export function cleanDocument(element: HTMLElement, attributes: string[] = [], selectors: string[] = []): void {
-    const combinedSelector = selectors.filter(x => x.length).join(', ');
+    const combinedSelector = selectors.filter(x => x.length).join(',');
 
     // remove chosen elements
     if(combinedSelector.length) {
@@ -123,7 +123,7 @@ export function getSelectionUnderHeading(app: App, file: TFile, editor: Editor, 
         // move up from the start of the next heading until we find non-empty line
         endLine = nextHeading.position.start.line - 1;
 
-        while(endLine > currentLine && editor.getLine(endLine).trim() === "") {
+        while(endLine > currentLine && editor.getLine(endLine).trim() === '') {
             endLine--;
         }
     }

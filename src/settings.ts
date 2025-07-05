@@ -5,6 +5,8 @@ export interface AO3ExportSettings {
     removedAttributes: string[]
     removedSelectors: string[]
     includeHeadingElement: boolean
+    listItemSelector: string
+    listItemSeparator: string
 }
 
 export function getDefaultSettings(): AO3ExportSettings {
@@ -16,7 +18,9 @@ export function getDefaultSettings(): AO3ExportSettings {
         removedSelectors: [
             ':has(.internal-embed)'
         ],
-        includeHeadingElement: true
+        includeHeadingElement: true,
+        listItemSelector: 'li',
+        listItemSeparator: ', '
     };
 }
 
@@ -51,7 +55,7 @@ export class AO3ExportSettingTab extends PluginSettingTab {
 
         new Setting(container)
             .setName('Options')
-            .setHeading()
+            .setHeading();
 
         new Setting(container)
             .setName('Heading titles')
@@ -61,7 +65,30 @@ export class AO3ExportSettingTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.includeHeadingElement = value;
                     await this.saveSettings(false);
-                }))
+                })
+            );
+
+        new Setting(container)
+            .setName('List selector')
+            .setDesc('Any element with this CSS selector will be copied as a list item')
+            .addText(text => text
+                .setValue(this.plugin.settings.listItemSelector)
+                .onChange(async (value) => {
+                    this.plugin.settings.listItemSelector = value;
+                    await this.saveSettings(false);
+                })
+            );
+
+        new Setting(container)
+            .setName('List separator')
+            .setDesc('Text to put between each copied list item')
+            .addText(text => text
+                .setValue(this.plugin.settings.listItemSeparator)
+                .onChange(async (value) => {
+                    this.plugin.settings.listItemSeparator = value;
+                    await this.saveSettings(false);
+                })
+            );
 
         new Setting(container)
             .setName('Reset settings')
@@ -72,7 +99,8 @@ export class AO3ExportSettingTab extends PluginSettingTab {
                 .onClick(async () => {
                     this.plugin.settings = getDefaultSettings();
                     await this.saveSettings(true);
-                }))
+                })
+            );
     }
 
     displayList(collection: string[], title: string, description: string, elementPlaceholder: string, addLabel: string) {

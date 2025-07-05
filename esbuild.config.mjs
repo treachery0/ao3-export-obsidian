@@ -1,8 +1,28 @@
 import esbuild from "esbuild";
 import process from "process";
 import builtins from "builtin-modules";
+import { exec } from "node:child_process";
 
 const prod = (process.argv[2] === "production");
+
+const postBuildPlugin = {
+    name: 'post-build-script',
+    setup(build) {
+        build.onEnd(result => {
+            if(result.errors.length) {
+                return;
+            }
+
+            exec('scripts/post-build.sh');
+
+            if(prod) {
+                return;
+            }
+
+            exec('scripts/copy-to-sandbox.sh');
+        });
+    }
+}
 
 const context = await esbuild.context({
     entryPoints: ["src/main.ts"],
@@ -22,6 +42,9 @@ const context = await esbuild.context({
         "@lezer/highlight",
         "@lezer/lr",
         ...builtins
+    ],
+    plugins: [
+        postBuildPlugin
     ],
     format: "cjs",
     target: "es2018",
