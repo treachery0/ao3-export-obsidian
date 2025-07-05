@@ -44,7 +44,7 @@ async function renderMarkdown(app: App, markdown: string, path: string): Promise
  * @returns The heading's text, its starting and ending position as an object.
  * @copyright Copied and deobfuscated from Obsidian's source code.
  */
-export function getSelectionUnderHeading(app: App, file: TFile, editor: Editor, currentLine: number): { heading: string, start: EditorPosition, end: EditorPosition } | null {
+function getSelectionUnderHeading(app: App, file: TFile, editor: Editor, currentLine: number): { heading: string, start: EditorPosition, end: EditorPosition } | null {
     const cache = app.metadataCache.getFileCache(file);
 
     if(!cache) {

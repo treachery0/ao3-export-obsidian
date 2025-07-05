@@ -1,7 +1,7 @@
 import { Plugin } from "obsidian";
 import { HtmlTransformerSettings } from "./models/HtmlTransformerSettings";
-import { extendContextMenu } from "./menu";
-import { getDefaultSettings, createSettingsTab } from "./settings";
+import { extendContextMenu } from "./interface/menu";
+import { getDefaultSettings, createSettingsTab } from "./interface/settings";
 
 export default class HtmlTransformerPlugin extends Plugin {
     settings: HtmlTransformerSettings;

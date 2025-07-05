@@ -1,6 +1,6 @@
 export interface HtmlTransformerSettings {
     globalTransform: boolean
-    removedAttributes: string[]
-    removedSelectors: string[]
+    globalExcludedAttributes: string[]
+    globalExcludedSelectors: string[]
     includeHeadingElement: boolean
 }

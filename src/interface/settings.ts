@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import HtmlTransformerPlugin from "./main";
-import { HtmlTransformerSettings } from "./models/HtmlTransformerSettings";
+import HtmlTransformerPlugin from "../main";
+import { HtmlTransformerSettings } from "../models/HtmlTransformerSettings";
 
 class HtmlTransformerSettingTab extends PluginSettingTab {
     plugin: HtmlTransformerPlugin;
@@ -16,19 +16,19 @@ class HtmlTransformerSettingTab extends PluginSettingTab {
         container.empty();
 
         this.displayList(
-            this.plugin.settings.removedSelectors,
-            'Excluded elements',
-            'Any element matching at least one of these CSS selectors will be removed from exported content',
+            this.plugin.settings.globalExcludedSelectors,
+            'Globally excluded elements',
+            'Any HTML element matched by a CSS selector is always removed from exported content',
             'CSS selector',
-            'Add new selector'
+            'New selector'
         );
 
         this.displayList(
-            this.plugin.settings.removedAttributes,
-            'Excluded attributes',
-            'Any HTML attribute in this list will be removed from exported content',
+            this.plugin.settings.globalExcludedAttributes,
+            'Globally excluded attributes',
+            'Any HTML attribute in this list is always removed from exported content',
             'Attribute name',
-            'Add new attribute'
+            'New attribute'
         );
 
         new Setting(container)
@@ -47,8 +47,12 @@ class HtmlTransformerSettingTab extends PluginSettingTab {
             );
 
         new Setting(container)
+            .setName('Danger zone')
+            .setHeading();
+
+        new Setting(container)
             .setName('Reset settings')
-            .setDesc('Set all plugin settings to their default values')
+            .setDesc('Set plugin settings to their default values')
             .addButton(button => button
                 .setButtonText('Reset')
                 .setWarning()
@@ -59,19 +63,19 @@ class HtmlTransformerSettingTab extends PluginSettingTab {
             );
     }
 
-    displayList(collection: string[], title: string, description: string, elementPlaceholder: string, addLabel: string) {
+    displayList(collection: string[], name: string, description: string, placeholder: string, buttonLabel: string, defaultValue: string = '') {
         const container = this.containerEl;
 
         new Setting(container)
-            .setName(title)
+            .setName(name)
             .setDesc(description)
             .setHeading();
 
-        for(let i = 0; i < collection.length; i++){
+        for(let i = 0; i < collection.length; i++) {
             new Setting(container)
                 .setClass('setting-list-item')
                 .addText(text => text
-                    .setPlaceholder(elementPlaceholder)
+                    .setPlaceholder(placeholder)
                     .setValue(collection[i])
                     .onChange(async (value) => {
                         collection[i] = value;
@@ -88,9 +92,9 @@ class HtmlTransformerSettingTab extends PluginSettingTab {
         new Setting(container)
             .setClass('setting-list-add')
             .addButton(button => button
-                .setButtonText(addLabel)
+                .setButtonText(buttonLabel)
                 .onClick(async () => {
-                    collection.push('');
+                    collection.push(defaultValue);
                     await this.saveSettings(true);
                 }));
     }
@@ -111,11 +115,11 @@ export function createSettingsTab(plugin: HtmlTransformerPlugin): PluginSettingT
 export function getDefaultSettings(): HtmlTransformerSettings {
     return {
         globalTransform: true,
-        removedAttributes: [
+        globalExcludedAttributes: [
             'data-heading',
             'dir'
         ],
-        removedSelectors: [
+        globalExcludedSelectors: [
             ':has(.internal-embed)'
         ],
         includeHeadingElement: true

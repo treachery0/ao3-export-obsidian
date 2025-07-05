@@ -1,10 +1,10 @@
 import { Editor, MarkdownFileInfo, MarkdownView, Menu, MenuItem, Notice } from "obsidian";
-import { ExportMenuItem } from "./models/ExportMenuItem";
-import { TransformMenuItem } from "./models/TransformMenuItem";
-import { HtmlTransformerSettings } from "./models/HtmlTransformerSettings";
-import { ExportCallback } from "./models/ExportCallback";
-import { TransformCallback } from "./models/TransformCallback";
-import { getHeadingAsHTML, getSelectionAsHTML } from "./utils";
+import { ExportMenuItem } from "../models/ExportMenuItem";
+import { TransformMenuItem } from "../models/TransformMenuItem";
+import { HtmlTransformerSettings } from "../models/HtmlTransformerSettings";
+import { ExportCallback } from "../models/ExportCallback";
+import { TransformCallback } from "../models/TransformCallback";
+import { getHeadingAsHTML, getSelectionAsHTML } from "../utils";
 
 const exportItems: ExportMenuItem[] = [
     {
@@ -45,15 +45,15 @@ const exportItems: ExportMenuItem[] = [
 
 const transformItems: TransformMenuItem[] = [
     {
-        title: 'Without changes',
-        icon: 'circle-slash',
+        title: 'HTML',
+        icon: 'code-xml',
         transformFn: (element) => {
             return element;
         }
     },
     {
         title: 'Plain text',
-        icon: 'a-large-small',
+        icon: 'letter-text',
         transformFn: (element) => {
             return element.innerText.trim();
         }
@@ -135,17 +135,17 @@ export async function exportDocument(editor: Editor, view: MarkdownView | Markdo
     }
 
     if(!transformed.length) {
-        new Notice('Selection was empty');
+        new Notice('No characters copied: selection is empty');
         return;
     }
 
     await navigator.clipboard.writeText(transformed);
 
-    new Notice(`Copied ${transformed.length} characters to the clipboard!`);
+    new Notice(`Copied ${transformed.length} character${transformed.length === 1 ? '' : 's'} to the clipboard`);
 }
 
 export function transformGlobal(element: HTMLElement, settings: HtmlTransformerSettings): HTMLElement {
-    const combinedSelector = settings.removedSelectors.filter(x => x.length).join(',');
+    const combinedSelector = settings.globalExcludedSelectors.filter(x => x.length).join(',');
 
     // remove chosen elements
     if(combinedSelector.length) {
@@ -154,10 +154,10 @@ export function transformGlobal(element: HTMLElement, settings: HtmlTransformerS
         });
     }
 
-    if(settings.removedAttributes.length) {
+    if(settings.globalExcludedAttributes.length) {
         element.querySelectorAll('*').forEach(el => {
             // remove chosen attributes
-            settings.removedAttributes.forEach(attr => el.removeAttribute(attr));
+            settings.globalExcludedAttributes.forEach(attr => el.removeAttribute(attr));
         });
     }
 
