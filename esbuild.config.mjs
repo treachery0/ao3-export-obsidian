@@ -9,17 +9,11 @@ const postBuildPlugin = {
     name: 'post-build-script',
     setup(build) {
         build.onEnd(result => {
-            if(result.errors.length) {
+            if(prod || result.errors.length) {
                 return;
             }
 
-            exec('scripts/post-build.sh');
-
-            if(prod) {
-                return;
-            }
-
-            exec('scripts/copy-to-sandbox.sh');
+            exec('./copy-to-sandbox.sh');
         });
     }
 }
