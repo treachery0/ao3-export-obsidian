@@ -1,9 +1,9 @@
 {
-	"id": "ao3-export",
-	"name": "AO3 export",
-	"version": "1.1.0",
-	"minAppVersion": "0.15.0",
-	"description": "Export notes to AO3 compatible HTML",
+	"id": "html-transformer",
+	"name": "HTML Transformer",
+	"version": "1.2.0",
+	"minAppVersion": "1.2.0",
+	"description": "Export notes to HTML",
 	"author": "Treachery",
 	"isDesktopOnly": false
 }

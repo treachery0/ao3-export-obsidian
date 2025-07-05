@@ -1,6 +1,5 @@
 {
-	"name": "ao3-export-obsidian",
-	"version": "1.1.0",
+	"name": "obsidian-html-transformer",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
 		"build": "node esbuild.config.mjs production",

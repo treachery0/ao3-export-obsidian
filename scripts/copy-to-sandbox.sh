@@ -1,7 +1,7 @@
 #!/bin/bash
 
 VAULT_PATH=".sandbox"
-PLUGIN_NAME="ao3-export"
+PLUGIN_NAME="html-transformer"
 PLUGIN_FOLDER="$VAULT_PATH/.obsidian/plugins/$PLUGIN_NAME"
 OUTPUT_FOLDER="dist"
 

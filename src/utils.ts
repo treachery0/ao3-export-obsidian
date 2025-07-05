@@ -36,39 +36,6 @@ async function renderMarkdown(app: App, markdown: string, path: string): Promise
 }
 
 /**
- * Trim an element of unnecessary children and attributes.
- * @param element The root element of the document.
- * @param attributes The attributes to remove from every element.
- * @param selectors A list of CSS selectors for elements to remove.
- */
-export function cleanDocument(element: HTMLElement, attributes: string[] = [], selectors: string[] = []): void {
-    const combinedSelector = selectors.filter(x => x.length).join(',');
-
-    // remove chosen elements
-    if(combinedSelector.length) {
-        element.querySelectorAll(combinedSelector).forEach(el => {
-            el.parentElement?.removeChild(el);
-        });
-    }
-
-    if(attributes.length) {
-        element.querySelectorAll('*').forEach(el => {
-            // remove chosen attributes
-            attributes.forEach(attr => el.removeAttribute(attr));
-        });
-    }
-}
-
-/**
- * Default function to convert a container element into a string.
- * @param element The container element.
- * @returns The inner HTML of the element.
- */
-export function defaultStringify(element: HTMLElement): string {
-    return element.innerHTML.trim();
-}
-
-/**
  * Find the content boundaries of a heading within a document.
  * @param app The current app instance.
  * @param file The current markdown file.

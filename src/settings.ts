@@ -1,33 +1,11 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
-import AO3ExportPlugin from "./main";
+import HtmlTransformerPlugin from "./main";
+import { HtmlTransformerSettings } from "./models/HtmlTransformerSettings";
 
-export interface AO3ExportSettings {
-    removedAttributes: string[]
-    removedSelectors: string[]
-    includeHeadingElement: boolean
-    listItemSelector: string
-    listItemSeparator: string
-}
+class HtmlTransformerSettingTab extends PluginSettingTab {
+    plugin: HtmlTransformerPlugin;
 
-export function getDefaultSettings(): AO3ExportSettings {
-    return {
-        removedAttributes: [
-            'data-heading',
-            'dir'
-        ],
-        removedSelectors: [
-            ':has(.internal-embed)'
-        ],
-        includeHeadingElement: true,
-        listItemSelector: 'li',
-        listItemSeparator: ', '
-    };
-}
-
-export class AO3ExportSettingTab extends PluginSettingTab {
-    plugin: AO3ExportPlugin;
-
-    constructor(app: App, plugin: AO3ExportPlugin) {
+    constructor(app: App, plugin: HtmlTransformerPlugin) {
         super(app, plugin);
         this.plugin = plugin;
     }
@@ -64,28 +42,6 @@ export class AO3ExportSettingTab extends PluginSettingTab {
                 .setValue(this.plugin.settings.includeHeadingElement)
                 .onChange(async (value) => {
                     this.plugin.settings.includeHeadingElement = value;
-                    await this.saveSettings(false);
-                })
-            );
-
-        new Setting(container)
-            .setName('List selector')
-            .setDesc('Any element with this CSS selector will be copied as a list item')
-            .addText(text => text
-                .setValue(this.plugin.settings.listItemSelector)
-                .onChange(async (value) => {
-                    this.plugin.settings.listItemSelector = value;
-                    await this.saveSettings(false);
-                })
-            );
-
-        new Setting(container)
-            .setName('List separator')
-            .setDesc('Text to put between each copied list item')
-            .addText(text => text
-                .setValue(this.plugin.settings.listItemSeparator)
-                .onChange(async (value) => {
-                    this.plugin.settings.listItemSeparator = value;
                     await this.saveSettings(false);
                 })
             );
@@ -146,4 +102,22 @@ export class AO3ExportSettingTab extends PluginSettingTab {
             this.display();
         }
     }
+}
+
+export function createSettingsTab(plugin: HtmlTransformerPlugin): PluginSettingTab {
+    return new HtmlTransformerSettingTab(plugin.app, plugin);
+}
+
+export function getDefaultSettings(): HtmlTransformerSettings {
+    return {
+        globalTransform: true,
+        removedAttributes: [
+            'data-heading',
+            'dir'
+        ],
+        removedSelectors: [
+            ':has(.internal-embed)'
+        ],
+        includeHeadingElement: true
+    };
 }
