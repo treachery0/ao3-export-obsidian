@@ -3,7 +3,7 @@
 	"name": "HTML Transformer",
 	"version": "1.2.0",
 	"minAppVersion": "1.2.0",
-	"description": "Export notes to HTML",
+	"description": "Copy notes as HTML or plain text, with options to modify, transform, or remove content beforehand.",
 	"author": "Treachery",
 	"isDesktopOnly": false
 }
