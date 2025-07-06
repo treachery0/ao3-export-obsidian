@@ -3,10 +3,10 @@ import process from "process";
 import builtins from "builtin-modules";
 import { exec } from "node:child_process";
 
-const prod = (process.argv[2] === "production");
+const prod = process.argv[2] === 'production';
 
-const postBuildPlugin = {
-    name: 'post-build-script',
+const plugins = [{
+    name: 'copy-output',
     setup(build) {
         build.onEnd(result => {
             if(prod || result.errors.length) {
@@ -16,7 +16,7 @@ const postBuildPlugin = {
             exec('./copy-to-sandbox.sh');
         });
     }
-}
+}];
 
 const context = await esbuild.context({
     entryPoints: ["src/main.ts"],
@@ -37,9 +37,7 @@ const context = await esbuild.context({
         "@lezer/lr",
         ...builtins
     ],
-    plugins: [
-        postBuildPlugin
-    ],
+    plugins: plugins,
     format: "cjs",
     target: "es2018",
     logLevel: "info",

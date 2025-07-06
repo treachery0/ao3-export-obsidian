@@ -1,7 +1,7 @@
 {
 	"id": "html-transformer",
 	"name": "HTML Transformer",
-	"version": "1.2.0",
+	"version": "1.3.0",
 	"minAppVersion": "1.2.0",
 	"description": "Copy notes as HTML or plain text, with options to modify, transform, or remove content beforehand.",
 	"author": "Treachery",

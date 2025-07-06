@@ -115,13 +115,8 @@ export function createSettingsTab(plugin: HtmlTransformerPlugin): PluginSettingT
 export function getDefaultSettings(): HtmlTransformerSettings {
     return {
         globalTransform: true,
-        globalExcludedAttributes: [
-            'data-heading',
-            'dir'
-        ],
-        globalExcludedSelectors: [
-            ':has(.internal-embed)'
-        ],
+        globalExcludedAttributes: ['data-heading', 'dir'],
+        globalExcludedSelectors: [':has(.internal-embed)'],
         includeHeadingElement: true
     };
 }
